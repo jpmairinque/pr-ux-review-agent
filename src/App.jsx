@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
   Box,
+  Button,
   Container,
   CssBaseline,
   IconButton,
@@ -30,6 +31,9 @@ function App() {
               <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>
                 Todo UX Lab
               </Typography>
+              <Button variant="h4" component="h1" sx={{ fontWeight: 700 }}>
+                Test Button
+              </Button>
               
             </Box>
             <Tooltip title={`Switch to ${mode === 'light' ? 'dark' : 'light'} mode`}>
