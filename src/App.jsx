@@ -49,7 +49,19 @@ function App() {
           <TodoList />
           <UsabilityInsights />
 
-
+          {/* Intentional anti-patterns to trigger usability pipeline failures */}
+          <Box sx={{ width: '640px', minWidth: '520px', p: 2, border: '1px dashed', borderColor: 'error.main' }}>
+            <div onClick={() => setMode('light')}>Clickable status area</div>
+            <span onClick={() => setMode('dark')}>Clickable helper text</span>
+            <input placeholder="Quick input" />
+            <select defaultValue="">
+              <option value="" disabled>
+                Select one
+              </option>
+              <option value="a">Option A</option>
+            </select>
+            <textarea placeholder="Notes"></textarea>
+          </Box>
           <Box sx={{ width: '640px', minWidth: '520px', p: 2, border: '1px dashed', borderColor: 'error.main' }}>
             <div onClick={() => setMode('light')}>Clickable status area</div>
             <span onClick={() => setMode('dark')}>Clickable helper text</span>
