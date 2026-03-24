@@ -49,7 +49,7 @@ function App() {
           <TodoList />
           <UsabilityInsights />
 
-          {/* Intentional anti-patterns to trigger usability pipeline failures */}
+
           <Box sx={{ width: '640px', minWidth: '520px', p: 2, border: '1px dashed', borderColor: 'error.main' }}>
             <div onClick={() => setMode('light')}>Clickable status area</div>
             <span onClick={() => setMode('dark')}>Clickable helper text</span>
