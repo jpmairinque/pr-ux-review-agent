@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AI Usability Review Output",
+  "type": "object",
+  "required": ["source", "ai_available", "findings", "residual_risks"],
+  "properties": {
+    "source": { "type": "string", "enum": ["ai"] },
+    "ai_available": { "type": "boolean" },
+    "note": { "type": "string" },
+    "context": {
+      "type": "object",
+      "properties": {
+        "changed_files": { "type": "number" },
+        "rubric_loaded": { "type": "boolean" },
+        "skill_loaded": { "type": "boolean" },
+        "provider": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "category", "file", "message", "suggestion", "source"],
+        "properties": {
+          "severity": { "type": "string", "enum": ["High", "Medium", "Low"] },
+          "category": { "type": "string" },
+          "file": { "type": "string" },
+          "message": { "type": "string" },
+          "suggestion": { "type": "string" },
+          "evidence": { "type": "string" },
+          "source": { "type": "string", "enum": ["ai"] }
+        },
+        "additionalProperties": true
+      }
+    },
+    "residual_risks": { "type": "array", "items": { "type": "string" } }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Usability Pipeline Config",
+  "type": "object",
+  "required": ["failurePolicy", "ai"],
+  "properties": {
+    "failurePolicy": {
+      "type": "object",
+      "required": ["failOnHigh"],
+      "properties": {
+        "failOnHigh": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "ai": {
+      "type": "object",
+      "required": ["provider", "requireApiKey"],
+      "properties": {
+        "provider": { "type": "string", "enum": ["mock", "openai"] },
+        "requireApiKey": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

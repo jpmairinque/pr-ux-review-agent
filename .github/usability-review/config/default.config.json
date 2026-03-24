@@ -1,0 +1,9 @@
+{
+  "failurePolicy": {
+    "failOnHigh": true
+  },
+  "ai": {
+    "provider": "mock",
+    "requireApiKey": true
+  }
+}
