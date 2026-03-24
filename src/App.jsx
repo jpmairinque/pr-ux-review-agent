@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import {
   Box,
-  Button,
   Container,
   CssBaseline,
   IconButton,
@@ -14,7 +13,6 @@ import {
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined'
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined'
 import TodoList from './components/TodoList'
-import UsabilityInsights from './components/UsabilityInsights'
 import { tokens } from './theme'
 
 function App() {
@@ -31,10 +29,6 @@ function App() {
               <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>
                 Todo UX Lab
               </Typography>
-              <Button variant="h4" component="h1" sx={{ fontWeight: 700 }}>
-                Todo UX Lab
-              </Button>
-              
             </Box>
             <Tooltip title={`Switch to ${mode === 'light' ? 'dark' : 'light'} mode`}>
               <IconButton
@@ -47,33 +41,6 @@ function App() {
           </Box>
 
           <TodoList />
-          <UsabilityInsights />
-
-          {/* Intentional anti-patterns to trigger usability pipeline failures */}
-          <Box sx={{ width: '640px', minWidth: '520px', p: 2, border: '1px dashed', borderColor: 'error.main' }}>
-            <div onClick={() => setMode('light')}>Clickable status area</div>
-            <span onClick={() => setMode('dark')}>Clickable helper text</span>
-            <input placeholder="Quick input" />
-            <select defaultValue="">
-              <option value="" disabled>
-                Select one
-              </option>
-              <option value="a">Option A</option>
-            </select>
-            <textarea placeholder="Notes"></textarea>
-          </Box>
-          <Box sx={{ width: '640px', minWidth: '520px', p: 2, border: '1px dashed', borderColor: 'error.main' }}>
-            <div onClick={() => setMode('light')}>Clickable status area</div>
-            <span onClick={() => setMode('dark')}>Clickable helper text</span>
-            <input placeholder="Quick input" />
-            <select defaultValue="">
-              <option value="" disabled>
-                Select one
-              </option>
-              <option value="a">Option A</option>
-            </select>
-            <textarea placeholder="Notes"></textarea>
-          </Box>
         </Stack>
       </Container>
     </ThemeProvider>
