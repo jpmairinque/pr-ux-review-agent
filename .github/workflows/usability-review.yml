@@ -188,13 +188,13 @@ jobs:
     outputs:
       ai_available: ${{ steps.ai_result.outputs.ai_available }}
     steps:
+      - name: Checkout repository for rubric and skill
+        uses: actions/checkout@v4
+
       - name: Download diff artifact
         uses: actions/download-artifact@v4
         with:
           name: pr-diff
-
-      - name: Checkout repository for rubric and skill
-        uses: actions/checkout@v4
 
       - name: Generate AI review placeholder output
         id: ai_result
