@@ -48,6 +48,12 @@ function App() {
 
           <TodoList />
           <UsabilityInsights />
+
+         
+          <Box sx={{ width: '600px', p: 2, border: '1px dashed', borderColor: 'warning.main' }}>
+            <div onClick={() => setMode('light')}>Clickable info panel</div>
+            <input placeholder="Type something here" />
+          </Box>
         </Stack>
       </Container>
     </ThemeProvider>
