@@ -16,45 +16,13 @@ permissions:
 jobs:
   collect_diff:
     runs-on: ubuntu-latest
-    outputs:
-      changed_files: ${{ steps.collect.outputs.changed_files }}
     steps:
+      - uses: actions/checkout@v4
       - name: Collect PR changed files and patches
-        id: collect
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const pr = context.payload.pull_request
-            const owner = context.repo.owner
-            const repo = context.repo.repo
-            const pull_number = pr.number
-
-            const files = await github.paginate(github.rest.pulls.listFiles, {
-              owner,
-              repo,
-              pull_number,
-              per_page: 100,
-            })
-
-            const filtered = files
-              .filter((f) => /\.(jsx|js|tsx|ts|css|scss)$/i.test(f.filename))
-              .map((f) => ({
-                filename: f.filename,
-                status: f.status,
-                patch: f.patch || '',
-              }))
-
-            const fs = require('fs')
-            fs.writeFileSync('pr-diff.json', JSON.stringify({
-              pull_request: {
-                number: pr.number,
-                title: pr.title,
-                body: pr.body || '',
-              },
-              files: filtered,
-            }, null, 2))
-
-            core.setOutput('changed_files', String(filtered.length))
+        run: node ".github/usability-review/scripts/collect-diff.js"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          USABILITY_PR_DIFF_PATH: pr-diff.json
 
       - name: Upload diff artifact
         uses: actions/upload-artifact@v4
@@ -65,11 +33,8 @@ jobs:
   usability_rules:
     runs-on: ubuntu-latest
     needs: collect_diff
-    outputs:
-      high_count: ${{ steps.rules.outputs.high_count }}
-      findings_count: ${{ steps.rules.outputs.findings_count }}
-      top_findings: ${{ steps.rules.outputs.top_findings }}
     steps:
+      - uses: actions/checkout@v4
       - name: Download diff artifact
         uses: actions/download-artifact@v4
         with:
@@ -77,149 +42,33 @@ jobs:
 
       - name: Run deterministic usability checks
         id: rules
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs')
-            const payload = JSON.parse(fs.readFileSync('pr-diff.json', 'utf8'))
-            const files = payload.files || []
-            const findings = []
-            const addFinding = (severity, file, category, message, suggestion, rule_id) => {
-              findings.push({ severity, file, category, message, suggestion, rule_id, source: 'rules' })
-            }
-
-            for (const file of files) {
-              const patch = file.patch || ''
-              if (!patch) continue
-
-              // WCAG Understandable: form controls should be labeled.
-              const controls = patch.match(/<(input|select|textarea)\b[^>]*>/gi) || []
-              for (const control of controls) {
-                if (!/(aria-label|aria-labelledby|id|name)\s*=/.test(control)) {
-                  addFinding(
-                    'High',
-                    file.filename,
-                    'WCAG Understandable',
-                    'Potential unlabeled form control can reduce usability and accessibility.',
-                    'Add an associated label, or aria-label/aria-labelledby with meaningful text.',
-                    'unlabeled_control'
-                  )
-                  break
-                }
-              }
-
-              // WCAG Operable: clickable non-interactive elements require keyboard/focus semantics.
-              const clickableNonInteractive = patch.match(/<(div|span)\b[^>]*onClick\s*=\s*[^>]*>/gi) || []
-              for (const node of clickableNonInteractive) {
-                if (!/(onKeyDown|role|tabIndex)\s*=/.test(node)) {
-                  addFinding(
-                    'High',
-                    file.filename,
-                    'WCAG Operable',
-                    'Non-interactive element handles click without keyboard/focus support.',
-                    'Use button semantics or add keyboard handlers with role and tabIndex.',
-                    'non_interactive_onclick'
-                  )
-                  break
-                }
-              }
-
-              // Responsive: large fixed pixel widths may break small screens.
-              if (/(width|minWidth|maxWidth|min-width|max-width)\s*:\s*['"]?[4-9]\d{2,}px['"]?/i.test(patch)) {
-                addFinding(
-                  'Medium',
-                  file.filename,
-                  'Responsive',
-                  'Large fixed width may cause overflow on mobile.',
-                  'Use responsive breakpoints, fluid widths, or clamp-based sizing.',
-                  'fixed_large_width'
-                )
-              }
-            }
-
-            const highCount = findings.filter((f) => f.severity === 'High').length
-            const topFindings = findings
-              .slice(0, 5)
-              .map((f) => `${f.severity} | ${f.file} | ${f.message}`)
-              .join(' || ')
-            fs.writeFileSync('rules-findings.json', JSON.stringify({ findings }, null, 2))
-            core.setOutput('high_count', String(highCount))
-            core.setOutput('findings_count', String(findings.length))
-            core.setOutput('top_findings', topFindings || 'No findings')
+        run: node ".github/usability-review/scripts/run-deterministic-checks.js"
+        continue-on-error: true
+        env:
+          USABILITY_PR_DIFF_PATH: pr-diff.json
+          USABILITY_RULES_OUTPUT_PATH: rules-findings.json
+          USABILITY_CONFIG_PATH: .github/usability-review/config/default.config.json
 
       - name: Upload deterministic findings
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: rules-findings
           path: rules-findings.json
 
       - name: Comment deterministic failures on PR timeline
-        if: steps.rules.outputs.high_count != '0'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs')
-            const payload = JSON.parse(fs.readFileSync('rules-findings.json', 'utf8'))
-            const findings = payload.findings || []
-            const highFindings = findings.filter((f) => f.severity === 'High')
-            const mediumFindings = findings.filter((f) => f.severity === 'Medium')
-
-            const lines = [
-              '### Usability Rules Failed',
-              '',
-              `Detected issues: ${findings.length} total (${highFindings.length} high, ${mediumFindings.length} medium).`,
-              '',
-              '#### Found issues',
-              ...(findings.length
-                ? findings.map((f) =>
-                    `- ${f.severity} - \`${f.file}\` (${f.category}): ${f.message} Suggested fix: ${f.suggestion}`
-                  )
-                : ['- No findings were serialized.']),
-              '',
-              'Reference rubric: `review-rubric.md`',
-            ]
-
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.payload.pull_request.number,
-              body: lines.join('\n'),
-            })
+        if: steps.rules.outcome == 'failure'
+        run: node ".github/usability-review/scripts/post-rules-failure-comment.js"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Fail on high-severity deterministic findings
-        if: steps.rules.outputs.high_count != '0'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs')
-            const payload = JSON.parse(fs.readFileSync('rules-findings.json', 'utf8'))
-            const findings = payload.findings || []
-            const highFindings = findings.filter((f) => f.severity === 'High')
-
-            for (const finding of highFindings.slice(0, 10)) {
-              core.error(`[${finding.severity}] ${finding.file} (${finding.category}) - ${finding.message} | Fix: ${finding.suggestion}`)
-            }
-
-            const summaryLines = highFindings.slice(0, 10).map((f) =>
-              `- ${f.severity} - \`${f.file}\` (${f.category}): ${f.message} Suggested fix: ${f.suggestion}`
-            )
-            core.summary
-              .addHeading('Deterministic Usability Findings')
-              .addRaw(summaryLines.length ? summaryLines.join('\n') : '- No high-severity findings.')
-              .write()
-
-            core.setFailed(
-              `Deterministic usability checks found ${process.env.HIGH_COUNT} high-severity issue(s). Top findings: ${process.env.TOP_FINDINGS}`
-            )
-        env:
-          HIGH_COUNT: ${{ steps.rules.outputs.high_count }}
-          TOP_FINDINGS: ${{ steps.rules.outputs.top_findings }}
+        if: steps.rules.outcome == 'failure'
+        run: exit 1
 
   usability_ai_review:
     runs-on: ubuntu-latest
     needs: [collect_diff]
-    outputs:
-      ai_available: ${{ steps.ai_result.outputs.ai_available }}
     steps:
       - name: Checkout repository for rubric and skill
         uses: actions/checkout@v4
@@ -229,43 +78,19 @@ jobs:
         with:
           name: pr-diff
 
-      - name: Generate AI review placeholder output
-        id: ai_result
-        uses: actions/github-script@v7
+      - name: Run AI diff-agent adapter
+        run: node ".github/usability-review/scripts/run-ai-review.js"
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        with:
-          script: |
-            const fs = require('fs')
-            const hasAiKey = Boolean(process.env.OPENAI_API_KEY)
-            if (!hasAiKey) {
-              core.setFailed('OPENAI_API_KEY is required for usability_ai_review but was not provided.')
-              return
-            }
-            const payload = JSON.parse(fs.readFileSync('pr-diff.json', 'utf8'))
-            const rubric = fs.readFileSync('review-rubric.md', 'utf8')
-            const skill = fs.readFileSync('.cursor/skills/pr-usability-review/SKILL.md', 'utf8')
-
-            const result = {
-              source: 'ai',
-              ai_available: hasAiKey,
-              note: 'AI provider key detected. Replace this placeholder with your provider call and strict JSON schema validation.',
-              context: {
-                changed_files: payload.files.length,
-                rubric_loaded: rubric.length > 0,
-                skill_loaded: skill.length > 0
-              },
-              findings: [],
-              residual_risks: [
-                'Visual contrast and interaction behavior require runtime validation.',
-                'Cross-file UX flow issues are not covered by deterministic checks.'
-              ]
-            }
-
-            fs.writeFileSync('ai-findings.json', JSON.stringify(result, null, 2))
-            core.setOutput('ai_available', hasAiKey ? 'true' : 'false')
+          USABILITY_PR_DIFF_PATH: pr-diff.json
+          USABILITY_AI_OUTPUT_PATH: ai-findings.json
+          USABILITY_CONFIG_PATH: .github/usability-review/config/default.config.json
+          USABILITY_AI_SCHEMA_PATH: .github/usability-review/contracts/ai-review.schema.json
+          USABILITY_RUBRIC_PATH: review-rubric.md
+          USABILITY_SKILL_PATH: .cursor/skills/pr-usability-review/SKILL.md
 
       - name: Upload AI findings
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ai-findings
@@ -276,6 +101,9 @@ jobs:
     needs: [usability_rules, usability_ai_review]
     if: always()
     steps:
+      - name: Checkout repository for summary
+        uses: actions/checkout@v4
+    
       - name: Download deterministic findings
         uses: actions/download-artifact@v4
         with:
@@ -291,53 +119,6 @@ jobs:
         continue-on-error: true
 
       - name: Post consolidated summary comment
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs')
-            const rules = fs.existsSync('rules-findings.json')
-              ? JSON.parse(fs.readFileSync('rules-findings.json', 'utf8'))
-              : { findings: [] }
-            const ai = fs.existsSync('ai-findings.json')
-              ? JSON.parse(fs.readFileSync('ai-findings.json', 'utf8'))
-              : {
-                  source: 'ai',
-                  note: 'AI findings artifact unavailable (job may have failed before upload).',
-                  findings: [],
-                  residual_risks: ['AI summary unavailable due to upstream failure.'],
-                }
-            const findings = rules.findings || []
-
-            const high = findings.filter((f) => f.severity === 'High').length
-            const medium = findings.filter((f) => f.severity === 'Medium').length
-            const low = findings.filter((f) => f.severity === 'Low').length
-
-            const topFindings = findings.length
-              ? findings.map((f) => `- ${f.severity} - \`${f.file}\` (${f.category}): ${f.message} Suggested fix: ${f.suggestion}`)
-              : ['- No deterministic usability findings detected in this diff.']
-
-            const body = [
-              '### Usability Review Summary',
-              '',
-              `- High: ${high}`,
-              `- Medium: ${medium}`,
-              `- Low: ${low}`,
-              '',
-              '#### Deterministic Checks',
-              ...topFindings,
-              '',
-              '#### AI Review',
-              ai.note || 'No AI review note available.',
-              '',
-              'Residual risk:',
-              '- Visual contrast, animation timing, and real-device behavior still require manual validation.',
-              '',
-              'Reference rubric: `review-rubric.md`',
-            ].join('\n')
-
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.payload.pull_request.number,
-              body,
-            })
+        run: node ".github/usability-review/scripts/post-summary.js"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
