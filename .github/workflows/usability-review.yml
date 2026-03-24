@@ -38,27 +38,35 @@ jobs:
               if (!/\.(jsx|js|tsx|ts|css)$/i.test(file.filename) || !patch) continue
 
               // Heuristic: form controls should be labeled.
-              if (/<(input|select|textarea)(?![^>]*(aria-label|aria-labelledby|id=|name=))/i.test(patch)) {
-                addFinding(
-                  'High',
-                  file.filename,
-                  'Potential unlabeled form control can reduce usability and accessibility.',
-                  'Add an associated label, or aria-label/aria-labelledby with meaningful text.'
-                )
+              const controls = patch.match(/<(input|select|textarea)\b[^>]*>/gi) || []
+              for (const control of controls) {
+                if (!/(aria-label|aria-labelledby|id|name)\s*=/.test(control)) {
+                  addFinding(
+                    'High',
+                    file.filename,
+                    'Potential unlabeled form control can reduce usability and accessibility.',
+                    'Add an associated label, or aria-label/aria-labelledby with meaningful text.'
+                  )
+                  break
+                }
               }
 
-              // WCAG: click handlers on non-interactive elements may break keyboard access.
-              if (/<(div|span)[^>]*onClick=/i.test(patch) && !/(onKeyDown|role=|tabIndex=)/i.test(patch)) {
-                addFinding(
-                  'High',
-                  file.filename,
-                  'Non-interactive element handles click without keyboard/focus support.',
-                  'Use button semantics or add keyboard handlers with role and tabIndex.'
-                )
+              // WCAG: clickable non-interactive elements must provide keyboard/focus semantics.
+              const clickableNonInteractive = patch.match(/<(div|span)\b[^>]*onClick\s*=\s*[^>]*>/gi) || []
+              for (const node of clickableNonInteractive) {
+                if (!/(onKeyDown|role|tabIndex)\s*=/.test(node)) {
+                  addFinding(
+                    'High',
+                    file.filename,
+                    'Non-interactive element handles click without keyboard/focus support.',
+                    'Use button semantics or add keyboard handlers with role and tabIndex.'
+                  )
+                  break
+                }
               }
 
-              // Responsive: fixed pixel widths may break small screens.
-              if (/(width|min-width|max-width)\s*:\s*[4-9]\d{2,}px/i.test(patch)) {
+              // Responsive: large fixed pixel widths may break small screens.
+              if (/(width|minWidth|maxWidth|min-width|max-width)\s*:\s*['"]?[4-9]\d{2,}px['"]?/i.test(patch)) {
                 addFinding(
                   'Medium',
                   file.filename,
@@ -79,3 +87,7 @@ jobs:
               issue_number: pull_number,
               body,
             })
+
+            if (findings.length) {
+              core.setFailed(`Usability review found ${findings.length} issue(s).`)
+            }

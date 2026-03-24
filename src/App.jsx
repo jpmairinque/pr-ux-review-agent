@@ -54,8 +54,10 @@ function App() {
             <div onClick={() => setMode('light')}>Clickable info panel</div>
             <input placeholder="Type something here" />
           </Box>
+
           <Box sx={{ minWidth: '500px', p: 2 }}>
             <span onClick={() => setMode('dark')}>Another clickable text control</span>
+            
             <select defaultValue="">
               <option value="" disabled>
                 Select a value
