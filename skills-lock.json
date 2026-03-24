@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "usability-testing": {
+      "source": "refoundai/lenny-skills",
+      "sourceType": "github",
+      "computedHash": "96802ce30444a340556981f8f4df9d1939f18052bf099e84f8990db2d85e2ed0"
+    }
+  }
+}

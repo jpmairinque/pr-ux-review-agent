@@ -1,0 +1,81 @@
+name: Usability PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Review changed code for usability risks
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request
+            const owner = context.repo.owner
+            const repo = context.repo.repo
+            const pull_number = pr.number
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner,
+              repo,
+              pull_number,
+              per_page: 100,
+            })
+
+            const findings = []
+            const addFinding = (severity, file, message, suggestion) => {
+              findings.push(`- ${severity} - \`${file}\`: ${message} Suggested fix: ${suggestion}`)
+            }
+
+            for (const file of files) {
+              const patch = file.patch || ''
+              if (!/\.(jsx|js|tsx|ts|css)$/i.test(file.filename) || !patch) continue
+
+              // Heuristic: form controls should be labeled.
+              if (/<(input|select|textarea)(?![^>]*(aria-label|aria-labelledby|id=|name=))/i.test(patch)) {
+                addFinding(
+                  'High',
+                  file.filename,
+                  'Potential unlabeled form control can reduce usability and accessibility.',
+                  'Add an associated label, or aria-label/aria-labelledby with meaningful text.'
+                )
+              }
+
+              // WCAG: click handlers on non-interactive elements may break keyboard access.
+              if (/<(div|span)[^>]*onClick=/i.test(patch) && !/(onKeyDown|role=|tabIndex=)/i.test(patch)) {
+                addFinding(
+                  'High',
+                  file.filename,
+                  'Non-interactive element handles click without keyboard/focus support.',
+                  'Use button semantics or add keyboard handlers with role and tabIndex.'
+                )
+              }
+
+              // Responsive: fixed pixel widths may break small screens.
+              if (/(width|min-width|max-width)\s*:\s*[4-9]\d{2,}px/i.test(patch)) {
+                addFinding(
+                  'Medium',
+                  file.filename,
+                  'Large fixed width may cause overflow on mobile.',
+                  'Use responsive breakpoints, fluid widths, or clamp-based sizing.'
+                )
+              }
+            }
+
+            const header = '### Automated Usability Review\n'
+            const body = findings.length
+              ? `${header}\nFindings:\n${findings.join('\n')}\n\nReference rubric: \`review-rubric.md\``
+              : `${header}\nNo major heuristic/WCAG/responsive issues detected in the diff.\n\nResidual risk:\n- Visual contrast and real-device behavior still need manual validation.`
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: pull_number,
+              body,
+            })
