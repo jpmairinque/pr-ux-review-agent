@@ -53,7 +53,7 @@ function App() {
             </Tooltip>
           </Box>
 
-          <input type="text"/>
+ 
 
           <TodoList />
         </Stack>
