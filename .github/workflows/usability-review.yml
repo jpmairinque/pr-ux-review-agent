@@ -280,19 +280,32 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: rules-findings
+          if-no-files-found: warn
+        continue-on-error: true
 
       - name: Download AI findings
         uses: actions/download-artifact@v4
         with:
           name: ai-findings
+          if-no-files-found: warn
+        continue-on-error: true
 
       - name: Post consolidated summary comment
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs')
-            const rules = JSON.parse(fs.readFileSync('rules-findings.json', 'utf8'))
-            const ai = JSON.parse(fs.readFileSync('ai-findings.json', 'utf8'))
+            const rules = fs.existsSync('rules-findings.json')
+              ? JSON.parse(fs.readFileSync('rules-findings.json', 'utf8'))
+              : { findings: [] }
+            const ai = fs.existsSync('ai-findings.json')
+              ? JSON.parse(fs.readFileSync('ai-findings.json', 'utf8'))
+              : {
+                  source: 'ai',
+                  note: 'AI findings artifact unavailable (job may have failed before upload).',
+                  findings: [],
+                  residual_risks: ['AI summary unavailable due to upstream failure.'],
+                }
             const findings = rules.findings || []
 
             const high = findings.filter((f) => f.severity === 'High').length
