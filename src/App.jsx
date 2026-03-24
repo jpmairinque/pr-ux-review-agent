@@ -13,7 +13,6 @@ import {
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined'
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined'
 import TodoList from './components/TodoList'
-import UsabilityInsights from './components/UsabilityInsights'
 import { tokens } from './theme'
 
 function App() {
@@ -30,7 +29,6 @@ function App() {
               <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>
                 Todo UX Lab
               </Typography>
-              
             </Box>
             <Tooltip title={`Switch to ${mode === 'light' ? 'dark' : 'light'} mode`}>
               <IconButton
@@ -43,7 +41,6 @@ function App() {
           </Box>
 
           <TodoList />
-          <UsabilityInsights />
         </Stack>
       </Container>
     </ThemeProvider>
