@@ -32,7 +32,7 @@ function App() {
                 Todo UX Lab
               </Typography>
               <Button variant="h4" component="h1" sx={{ fontWeight: 700 }}>
-                Test Button
+                Todo UX Lab
               </Button>
               
             </Box>
@@ -49,22 +49,18 @@ function App() {
           <TodoList />
           <UsabilityInsights />
 
-         
-          <Box sx={{ width: '600px', p: 2, border: '1px dashed', borderColor: 'warning.main' }}>
-            <div onClick={() => setMode('light')}>Clickable info panel</div>
-            <input placeholder="Type something here" />
-          </Box>
-
-          <Box sx={{ minWidth: '500px', p: 2 }}>
-            <span onClick={() => setMode('dark')}>Another clickable text control</span>
-            
+          {/* Intentional anti-patterns to trigger usability pipeline failures */}
+          <Box sx={{ width: '640px', minWidth: '520px', p: 2, border: '1px dashed', borderColor: 'error.main' }}>
+            <div onClick={() => setMode('light')}>Clickable status area</div>
+            <span onClick={() => setMode('dark')}>Clickable helper text</span>
+            <input placeholder="Quick input" />
             <select defaultValue="">
               <option value="" disabled>
-                Select a value
+                Select one
               </option>
               <option value="a">Option A</option>
             </select>
-            <textarea placeholder="Quick notes"></textarea>
+            <textarea placeholder="Notes"></textarea>
           </Box>
         </Stack>
       </Container>
