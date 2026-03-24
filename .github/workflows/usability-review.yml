@@ -101,6 +101,9 @@ jobs:
     needs: [usability_rules, usability_ai_review]
     if: always()
     steps:
+      - name: Checkout repository for summary
+        uses: actions/checkout@v4
+    
       - name: Download deterministic findings
         uses: actions/download-artifact@v4
         with:
